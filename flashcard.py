@@ -14,6 +14,15 @@ import time
 st.set_page_config(layout="wide", page_title="Review App", page_icon="🎓")
 
 # ================================
+# BỘ KHO LƯU TRỮ TRUNG GIAN (DÙNG CHUNG TOÀN HỆ THỐNG)
+# ================================
+@st.cache_resource
+def get_global_store():
+    # Khởi tạo một dictionary chung cho mọi session
+    return {"flashcard_data": None, "game_type": None}
+
+global_store = get_global_store()
+# ================================
 # TỐI ƯU CSS TOÀN CỤC (ĐỊNH DẠNG KHUNG FLASHCARD CHUẨN)
 # ================================
 st.markdown("""
@@ -107,6 +116,11 @@ if "quiz_feedback" not in st.session_state:
 if url_role == "student":
     st.title("🎓 Khu vực Ôn Tập Của Sinh Viên")
     
+    # ĐỒNG BỘ TỪ KHO CHUNG VÀO SESSION CỦA SV
+    if global_store["flashcard_data"] is not None and st.session_state["flashcard_data"] is None:
+        st.session_state["flashcard_data"] = global_store["flashcard_data"]
+        st.session_state["game_type"] = global_store["game_type"]
+
     data = st.session_state.get("flashcard_data")
     if data is None:
         st.warning("⏳ Giảng viên hiện chưa phát đề bài nào. Vui lòng đợi giảng viên bật đề!")
@@ -331,10 +345,16 @@ else:
                 num_q = st.slider("Chọn số lượng câu cho đề game", 1, len(df_filtered), min(5, len(df_filtered))) if len(df_filtered) > 0 else 1
                 game_type = st.radio("Chọn hình thức ôn tập", ["Flashcard", "Matching Game"])
 
-                if st.button("🚀 KHỔI TẠO VÀ PHÁT ĐỀ"):
+                if st.button("🚀 KHỞI TẠO VÀ PHÁT ĐỀ"):
+                    # Tạo dữ liệu cho bản thân GV xem trước
                     st.session_state["flashcard_data"] = df_filtered.sample(num_q).reset_index(drop=True)
                     st.session_state["game_type"] = game_type
                     
+                    # LƯU VÀO KHO CHUNG ĐỂ SINH VIÊN THẤY ĐƯỢC
+                    global_store["flashcard_data"] = st.session_state["flashcard_data"]
+                    global_store["game_type"] = st.session_state["game_type"]
+                    
+                    # Reset các biến trạng thái cũ như bạn đã viết
                     st.session_state["current_card"] = 0
                     st.session_state["current_card_gv"] = 0
                     st.session_state["flipped_gv"] = False
@@ -347,7 +367,7 @@ else:
                     if "deck_gv" in st.session_state: del st.session_state["deck_gv"]
                     if "shuffled_answers" in st.session_state: del st.session_state["shuffled_answers"]
 
-                    st.success("🎉 ĐỀ ĐÃ ĐƯỢC TẠO THÀNH CÔNG!")
+                    st.success("🎉 ĐỀ ĐÃ ĐƯỢC TẠO THÀNH CÔNG VÀ PHÁT CHO LỚP!")
                     st.rerun()
 
             # --- PREVIEW BÊN GV ---
