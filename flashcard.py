@@ -28,37 +28,40 @@ def get_global_game_data():
 global_store = get_global_game_data()
 
 # ================================
-# CSS TOÀN CỤC: CHỈ ĐỊNH DẠNG KHUNG FLASHCARD
+# 🛠️ HỆ THỐNG CSS ĐỘC LẬP - KHÔNG ẢNH HƯỞNG ĐẾN NÚT MẶC ĐỊNH
 # ================================
 st.markdown("""
     <style>
-    /* Định dạng chung cho khung Container làm Flashcard */
-    [data-testid="stBlock"] {
+    /* ----------------------------------
+       1. ĐỊNH DẠNG KHUNG HÌNH CHỮ NHẬT CỐ ĐỊNH CHO FLASHCARD
+    ---------------------------------- */
+    /* Ép khung container bọc ngoài của Streamlit */
+    .fc-box > div[data-testid="stVerticalBlockBorder"] {
         border-radius: 20px !important;
-        padding: 30px 20px !important;
-        min-height: 200px !important;
+        min-height: 220px !important;  /* Chiều cao cố định tạo hình chữ nhật cân đối */
+        padding: 40px 30px !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: center !important;
         align-items: center !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08) !important;
     }
     
-    /* Màu viền xanh cho Câu hỏi */
-    .border-blue [data-testid="stBlock"] {
+    /* Màu viền xanh dương cho câu hỏi */
+    .border-blue > div[data-testid="stVerticalBlockBorder"] {
         border: 3px solid #3b82f6 !important;
     }
     
-    /* Màu viền xanh lá cho Đáp án */
-    .border-green [data-testid="stBlock"] {
+    /* Màu viền xanh lá cho đáp án */
+    .border-green > div[data-testid="stVerticalBlockBorder"] {
         border: 3px solid #10b981 !important;
     }
 
-    /* Ép chữ và ký tự Toán học ($$) bên trong Flashcard phải to và căn giữa */
-    [data-testid="stBlock"] .stMarkdown, 
-    [data-testid="stBlock"] .stMarkdown p,
-    [data-testid="stBlock"] .katex, 
-    [data-testid="stBlock"] .katex * {
+    /* Phóng to chữ và ký tự toán học KaTeX ($$) bên trong Flashcard, tự động căn giữa */
+    .fc-box .stMarkdown, 
+    .fc-box .stMarkdown p,
+    .fc-box .katex, 
+    .fc-box .katex * {
         font-size: 24px !important;
         font-weight: bold !important;
         text-align: center !important;
@@ -72,6 +75,21 @@ st.markdown("""
         margin-bottom: 8px;
         text-align: center;
         display: block;
+    }
+
+    /* ----------------------------------
+       2. ĐỊNH DẠNG CÁC Ô LƯỚI TRÒ CHƠI MATCHING GAME 
+    ---------------------------------- */
+    /* Chỉ ép chiều cao cố định và bo tròn cho các nút nằm trong vùng chơi Matching Game */
+    .matching-area div.stButton > button {
+        height: 120px !important;       /* Chiều cao cố định giúp các ô đều nhau tăm tắp */
+        border: 2.5px solid #4a148c !important;
+        border-radius: 12px !important;  /* Bo tròn góc ô chữ nhật */
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        font-weight: bold !important;
+        font-size: 16px !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05) !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -135,7 +153,7 @@ if url_role == "student":
     game_type = global_store["game_type"]
     
     if data is None:
-        st.warning("⏳ Giảng viên hiện chưa phát đề bài nào. Vui lòng đợi giảng viên bật đề và F5 lại trang!")
+        st.warning("⏳ Giảng viên hiện chưa phát đề bài nào. Vui lòng đợi giảng viên kích hoạt phát đề bài tập!")
         st.stop()
 
     if st.session_state["student_info"] is None:
@@ -191,12 +209,12 @@ if url_role == "student":
 
         st.metric("Tiến độ câu hỏi", f"{idx + 1} / {len(data)}")
         
+        # HIỂN THỊ FLASHCARD CHỮ NHẬT CỐ ĐỊNH + DỊCH LA-TEX MƯỢT MÀ
         st.markdown('<span class="card-tag-text">❓ Câu hỏi</span>', unsafe_allow_html=True)
-        with st.container():
-            st.markdown('<div class="border-blue">', unsafe_allow_html=True)
-            with st.container(border=True):
-                st.markdown(row['question']) 
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div class="fc-box border-blue">', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown(row['question']) 
+        st.markdown('</div>', unsafe_allow_html=True)
 
         if st.session_state["quiz_feedback"] is not None:
             is_correct, selected_ans = st.session_state["quiz_feedback"]
@@ -236,21 +254,6 @@ if url_role == "student":
     elif game_type == "Matching Game":
         st.subheader("🧩 Trò chơi ghép cặp")
 
-        # KHU VỰC CSS CỦA NÚT MATCHING GAME (Cô lập hoàn toàn tại đây để không làm lệch nút Flashcard)
-        st.markdown("""
-            <style>
-            .matching-grid div.stButton > button {
-                height: 110px !important;
-                border: 2px solid #4a148c !important;
-                border-radius: 10px !important;
-                white-space: normal !important;
-                word-wrap: break-word !important;
-                font-weight: bold !important;
-                font-size: 16px !important;
-            }
-            </style>
-        """, unsafe_allow_html=True)
-
         c_score, c_time = st.columns(2)
         c_score.metric("🎯 Tiến độ ghép cặp đúng", f"{st.session_state['score']} / {len(data)}")
         c_time.metric("⏱️ Thời gian trôi qua", f"{elapsed}s")
@@ -287,13 +290,13 @@ if url_role == "student":
                 st.rerun()
             st.stop()
 
-        # Áp đặt class bọc lưới ô chữ để kích hoạt CSS chiều cao nút bấm
-        st.markdown('<div class="matching-grid">', unsafe_allow_html=True)
+        # Ép riêng class bọc để tạo các ô chữ nhật bo tròn đều nhau tăm tắp
+        st.markdown('<div class="matching-area">', unsafe_allow_html=True)
         cols = st.columns(4)
         for i, card in enumerate(deck):
             with cols[i % 4]:
                 if i in st.session_state["matched"]:
-                    st.markdown("<div style='height:110px; margin-bottom:1rem; border:2px dashed #eee; border-radius:10px;'></div>", unsafe_allow_html=True) 
+                    st.markdown("<div style='height:120px; margin-bottom:1rem; border:2px dashed #eee; border-radius:12px;'></div>", unsafe_allow_html=True) 
                 elif i in st.session_state["opened_cards"]:
                     if st.button(f"📍 {card[2]}", key=f"match_{i}", use_container_width=True, type="primary"):
                         st.session_state["opened_cards"].remove(i)
@@ -356,17 +359,17 @@ else:
                 num_q = st.slider("Chọn số lượng câu cho đề game", 1, len(df_filtered), min(5, len(df_filtered))) if len(df_filtered) > 0 else 1
                 game_type = st.radio("Chọn hình thức ôn tập", ["Flashcard", "Matching Game"])
 
-                if st.button("🚀 KHỞI TẠO VÀ PHÁT ĐỀ"):
-                    # ĐẨY ĐỀ VÀO BỘ NHỚ TOÀN CỤC CHUNG CHO CẢ LỚP
+                if st.button("🚀 KHỔI TẠO VÀ PHÁT ĐỀ"):
+                    # ĐẨY ĐỀ VÀO BỘ NHỚ TRUNG TÂM CHUNG TOÀN HỆ THỐNG ĐỂ SINH VIÊN NHẬN ĐƯỢC NGAY
                     global_store["flashcard_data"] = df_filtered.sample(num_q).reset_index(drop=True)
                     global_store["game_type"] = game_type
-                    global_store["active_id"] += 1 # Tăng ID phiên để báo hiệu có đề mới
+                    global_store["active_id"] += 1 # Tăng mã định danh phiên để các máy SV tự động đồng bộ reset
                     
                     st.session_state["current_card_gv"] = 0
                     st.session_state["flipped_gv"] = False
                     if "deck_gv" in st.session_state: del st.session_state["deck_gv"]
 
-                    st.success("🎉 ĐỀ ĐÃ ĐƯỢC PHÁT TOÀN HỆ THỐNG! SINH VIÊN ĐÃ CÓ THỂ VÀO LÀM.")
+                    st.success("🎉 ĐỀ ĐÃ ĐƯỢC PHÁT LÊN MẠNG THÀNH CÔNG! ĐƯỜNG TRUYỀN ĐÃ MỞ CHO SINH VIÊN.")
                     st.rerun()
 
             # --- PREVIEW BÊN GV ---
@@ -394,7 +397,7 @@ else:
                         border_color_class = "border-blue"
                     
                     st.markdown(f'<span class="card-tag-text">{label_gv}</span>', unsafe_allow_html=True)
-                    st.markdown(f'<div class="{border_color_class}">', unsafe_allow_html=True)
+                    st.markdown(f'<div class="fc-box {border_color_class}">', unsafe_allow_html=True)
                     with st.container(border=True):
                         st.markdown(txt_gv)
                     st.markdown('</div>', unsafe_allow_html=True)
@@ -418,20 +421,6 @@ else:
                 elif global_store["game_type"] == "Matching Game":
                     st.write("📊 **Giao diện lưới ô chữ (Mô phỏng hiển thị mở sẵn):**")
                     
-                    # Cách ly CSS nút bấm riêng cho phần xem trước của GV
-                    st.markdown("""
-                        <style>
-                        .matching-preview div.stButton > button {
-                            height: 110px !important;
-                            border: 2px solid #4a148c !important;
-                            border-radius: 10px !important;
-                            white-space: normal !important;
-                            word-wrap: break-word !important;
-                            font-weight: bold !important;
-                        }
-                        </style>
-                    """, unsafe_allow_html=True)
-
                     if "deck_gv" not in st.session_state:
                         deck_gv = []
                         for i, row in preview_data.iterrows():
@@ -441,7 +430,7 @@ else:
                         st.session_state["deck_gv"] = deck_gv
                     
                     deck_gv = st.session_state["deck_gv"]
-                    st.markdown('<div class="matching-preview">', unsafe_allow_html=True)
+                    st.markdown('<div class="matching-area">', unsafe_allow_html=True)
                     cols_gv = st.columns(4)
                     for i, card in enumerate(deck_gv):
                         with cols_gv[i % 4]:
