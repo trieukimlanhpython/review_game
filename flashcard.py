@@ -28,8 +28,10 @@ if "game_type" not in st.session_state:
     st.session_state["game_type"] = None
 if "flipped_gv" not in st.session_state:
     st.session_state["flipped_gv"] = False
+if "current_card_gv" not in st.session_state:
+    st.session_state["current_card_gv"] = 0  # Quản lý câu hiện tại khi GV preview
 if "current_card" not in st.session_state:
-    st.session_state["current_card"] = 0
+    st.session_state["current_card"] = 0     # Quản lý câu hiện tại bên SV
 if "matched" not in st.session_state:
     st.session_state["matched"] = []
 if "opened_cards" not in st.session_state:
@@ -42,6 +44,10 @@ if "leaderboard" not in st.session_state:
     st.session_state["leaderboard"] = []
 if "start_time" not in st.session_state:
     st.session_state["start_time"] = None
+
+# Biến tạm lưu trạng thái phản hồi trắc nghiệm bên SV để hiển thị thông báo lâu hơn
+if "quiz_feedback" not in st.session_state:
+    st.session_state["quiz_feedback"] = None
 
 # ================================
 # PHÂN QUYỀN GIAO DIỆN THEO URL
@@ -95,13 +101,17 @@ if role == "Giảng viên":
                     st.session_state["flashcard_data"] = df_filtered.sample(num_q).reset_index(drop=True)
                     st.session_state["game_type"] = game_type
                     
+                    # Reset tất cả trạng thái
                     st.session_state["current_card"] = 0
+                    st.session_state["current_card_gv"] = 0
                     st.session_state["flipped_gv"] = False
                     st.session_state["matched"] = []
                     st.session_state["opened_cards"] = []
                     st.session_state["score"] = 0
                     st.session_state["start_time"] = None
+                    st.session_state["quiz_feedback"] = None
                     if "deck" in st.session_state: del st.session_state["deck"]
+                    if "deck_gv" in st.session_state: del st.session_state["deck_gv"]
                     if "shuffled_answers" in st.session_state: del st.session_state["shuffled_answers"]
 
                     st.success("🎉 ĐỀ ĐÃ ĐƯỢC TẠO THÀNH CÔNG!")
@@ -115,17 +125,22 @@ if role == "Giảng viên":
             preview_data = st.session_state["flashcard_data"]
             st.info(f"Dạng bài đang phát: **{st.session_state['game_type']}** | Tổng số câu: **{len(preview_data)}**")
 
-            # Preview Flashcard dạng chữ nhật bo tròn, canh giữa
+            # Preview Flashcard dạng chữ nhật bo tròn kèm nút Next/Prev
             if st.session_state["game_type"] == "Flashcard":
-                row_gv = preview_data.iloc[0]
+                total_gv_cards = len(preview_data)
+                idx_gv = st.session_state["current_card_gv"]
+                row_gv = preview_data.iloc[idx_gv]
+                
+                st.write(f"📌 **Đang xem câu hỏi số:** {idx_gv + 1} / {total_gv_cards}")
+                
                 if st.session_state["flipped_gv"]:
                     txt_gv = row_gv['solution']
-                    label_gv = "💡 [Mặt sau - ĐÁP ÁN]"
-                    border_color = "#10b981" # Viền xanh lá cho đáp án
+                    label_gv = f"💡 [Mặt sau - ĐÁP ÁN CÂU {idx_gv + 1}]"
+                    border_color = "#10b981" 
                 else:
                     txt_gv = row_gv['question']
-                    label_gv = "❓ [Mặt trước - CÂU HỎI (Demo câu đầu tiên)]"
-                    border_color = "#3b82f6" # Viền xanh dương cho câu hỏi
+                    label_gv = f"❓ [Mặt trước - CÂU HỎI CÂU {idx_gv + 1}]"
+                    border_color = "#3b82f6" 
                 
                 st.markdown(
                     f"""
@@ -150,9 +165,22 @@ if role == "Giảng viên":
                     """, unsafe_allow_html=True
                 )
                 
-                if st.button("🔄 Bấm thử lật mặt thẻ"):
-                    st.session_state["flipped_gv"] = not st.session_state["flipped_gv"]
-                    st.rerun()
+                # Thanh điều hướng của GV: Prev | Flip | Next
+                col_prev, col_flip, col_next = st.columns([1, 2, 1])
+                with col_prev:
+                    if st.button("⏪ Previous", use_container_width=True, disabled=(idx_gv == 0)):
+                        st.session_state["current_card_gv"] -= 1
+                        st.session_state["flipped_gv"] = False
+                        st.rerun()
+                with col_flip:
+                    if st.button("🔄 Lật mặt thẻ (Flip)", use_container_width=True, type="primary"):
+                        st.session_state["flipped_gv"] = not st.session_state["flipped_gv"]
+                        st.rerun()
+                with col_next:
+                    if st.button("⏩ Next", use_container_width=True, disabled=(idx_gv == total_gv_cards - 1)):
+                        st.session_state["current_card_gv"] += 1
+                        st.session_state["flipped_gv"] = False
+                        st.rerun()
 
             # Preview Matching Game
             elif st.session_state["game_type"] == "Matching Game":
@@ -257,6 +285,7 @@ else:
                 st.session_state["current_card"] = 0
                 st.session_state["score"] = 0
                 st.session_state["start_time"] = time.time()
+                st.session_state["quiz_feedback"] = None
                 if "shuffled_answers" in st.session_state: del st.session_state["shuffled_answers"]
                 st.rerun()
             st.stop()
@@ -272,7 +301,7 @@ else:
 
         st.metric("Tiến độ câu hỏi", f"{idx + 1} / {len(data)}")
         
-        # Ô câu hỏi của Sinh viên: Hình chữ nhật bo tròn, canh giữa hoàn hảo
+        # Ô câu hỏi hình chữ nhật bo tròn
         st.markdown(
             f"""
             <div style="
@@ -295,25 +324,42 @@ else:
             </div>
             """, unsafe_allow_html=True
         )
-        
-        st.write("👇 Hãy chọn đáp án chính xác (Hệ thống sẽ chuyển câu lập tức, chỉ được chọn 1 lần):")
-        
-        for ans in st.session_state["shuffled_answers"]:
-            if st.button(ans, key=f"ans_{ans}_{idx}", use_container_width=True):
-                if ans == row["solution"]:
-                    st.session_state["score"] += 1
-                    st.toast("🎉 Chính xác! Bạn được +1 điểm.", icon="✅")
-                else:
-                    st.toast(f"❌ Sai rồi! Đáp án đúng: {row['solution']}", icon="🚨")
-                
+
+        # KHU VỰC HIỂN THỊ PHẢN HỒI LÂU HƠN KHI SV BẤM CHỌN
+        if st.session_state["quiz_feedback"] is not None:
+            is_correct, selected_ans = st.session_state["quiz_feedback"]
+            if is_correct:
+                st.success(f"🎉 **Chính xác!** Bạn đã chọn đúng đáp án: **{selected_ans}**")
+            else:
+                st.error(f"❌ **Sai rồi!** Bạn chọn: *{selected_ans}*. \n\n 👉 Đáp án đúng phải là: **{row['solution']}**")
+            
+            st.write("---")
+            if st.button("⏩ Chuyển sang câu tiếp theo ngay lập tức", type="primary"):
                 st.session_state["current_card"] += 1
-                time.sleep(1.0)
+                st.session_state["quiz_feedback"] = None
                 st.rerun()
-        
-        st.markdown("---")
-        if st.button("⏩ Bỏ qua câu này (Next)"):
+                
+            # Đếm ngược thời gian hiển thị tĩnh (3 giây) trước khi tự động chuyển câu
+            time.sleep(3.0)
             st.session_state["current_card"] += 1
+            st.session_state["quiz_feedback"] = None
             st.rerun()
+
+        else:
+            st.write("👇 Hãy chọn đáp án chính xác (Hệ thống ghi nhận và hiển thị kết quả trong 3 giây trước khi chuyển câu):")
+            for ans in st.session_state["shuffled_answers"]:
+                if st.button(ans, key=f"ans_{ans}_{idx}", use_container_width=True):
+                    if ans == row["solution"]:
+                        st.session_state["score"] += 1
+                        st.session_state["quiz_feedback"] = (True, ans)
+                    else:
+                        st.session_state["quiz_feedback"] = (False, ans)
+                    st.rerun()
+            
+            st.markdown("---")
+            if st.button("⏩ Bỏ qua câu này (Next)"):
+                st.session_state["current_card"] += 1
+                st.rerun()
 
     # --- MATCHING GAME ---
     elif game_type == "Matching Game":
@@ -389,10 +435,10 @@ else:
                 st.session_state["score"] += 1
                 st.toast("Ghép chính xác! 👏", icon="✅")
                 st.session_state["opened_cards"] = []
-                time.sleep(0.3)
+                time.sleep(1.0)  # Tăng thời gian dừng nhìn từ 0.3s lên 1.0s khi ghép ĐÚNG
                 st.rerun()
             else:
                 st.toast("Không khớp rồi, thử lại nhé!", icon="❌")
-                time.sleep(0.8)
+                time.sleep(2.0)  # Tăng thời gian dừng nhìn từ 0.8s lên 2.0s khi ghép SAI
                 st.session_state["opened_cards"] = []
                 st.rerun()
