@@ -22,9 +22,10 @@ def get_global_store():
     return {
         "flashcard_data": None, 
         "game_type": None,
-        "time_limit": 5,          # Thêm mặc định thời gian làm bài (phút)
-        "allow_review": True,     # Thêm mặc định tùy chọn xem lại bài
-        "submitted_students": []  # Thêm danh sách chặn sinh viên làm lại lần 2
+        "time_limit": 5,          
+        "allow_review": True,     
+        "submitted_students": [],  # Danh sách chặn sinh viên làm lại lần 2
+        "leaderboard": []         # SỬA LỖI: Đưa leaderboard vào kho lưu trữ dùng chung toàn hệ thống
     }
 
 global_store = get_global_store()
@@ -170,7 +171,6 @@ if url_role == "student":
     # Kiểm tra nếu hết thời gian mà chưa đánh dấu hoàn thành
     if remaining_time <= 0 and not st.session_state.get("done_and_logged", False):
         st.session_state["is_timeout"] = True
-        # Đặt chỉ mục vượt mốc để kích hoạt tự động nộp bài ở logic bên dưới
         if game_type == "Flashcard":
             st.session_state["current_card"] = len(data) 
         elif game_type == "Matching Game":
@@ -189,8 +189,8 @@ if url_role == "student":
             type_label = "Flashcard (Quiz)" if game_type == "Flashcard" else "Matching Game"
             final_elapsed = min(elapsed, total_allowed_seconds)
             
-            # Đưa thông tin vào bảng điểm chung
-            st.session_state["leaderboard"].append({
+            # SỬA LỖI: Đẩy trực tiếp kết quả vào global_store để Giảng viên nhìn thấy ngay lập tức
+            global_store["leaderboard"].append({
                 "Thời gian nộp": time.strftime('%H:%M:%S - %d/%m/%Y'),
                 "Tên / Nhóm": student_name,
                 "Loại bài tập": type_label,
@@ -239,16 +239,13 @@ if url_role == "student":
             unsafe_allow_html=True
         )
 
-        # XỬ LÝ KHI ĐÃ CHỌN ĐÁP ÁN (CHỜ CHUYỂN CÂU)
         if st.session_state["quiz_feedback"] is not None:
             is_correct, selected_ans = st.session_state["quiz_feedback"]
             
-            # Khóa nút và hiển thị danh sách đáp án dạng tĩnh (không bấm được nữa)
             for ans in st.session_state["shuffled_answers"]:
                 st.button(ans, key=f"ans_disabled_{ans}_{idx}", use_container_width=True, disabled=True)
                 
             st.write("---")
-            # Hiển thị đáp án đúng sai dựa trên cấu hình giảng viên
             if global_store["allow_review"]:
                 if is_correct:
                     st.success(f"🎉 **Chính xác!** Bạn đã chọn đúng đáp án: **{selected_ans}**")
@@ -267,7 +264,6 @@ if url_role == "student":
             st.session_state["quiz_feedback"] = None
             st.rerun()
 
-        # CHƯA CHỌN ĐÁP ÁN: CHO PHÉP BẤM
         else:
             st.write("👇 Hãy chọn đáp án chính xác (Chỉ được chọn 1 lần duy nhất):")
             for ans in st.session_state["shuffled_answers"]:
@@ -395,6 +391,7 @@ else:
                     global_store["time_limit"] = time_limit_input
                     global_store["allow_review"] = allow_review_input
                     global_store["submitted_students"] = [] 
+                    # Giữ nguyên bảng điểm cũ khi phát đề mới, trừ khi chủ động bấm xóa ở Tab kết quả
                     
                     st.session_state["current_card"] = 0
                     st.session_state["current_card_gv"] = 0
@@ -494,13 +491,14 @@ else:
 
         with tab_results:
             st.subheader("📝 Kết quả làm bài của sinh viên")
-            if len(st.session_state["leaderboard"]) == 0:
+            # SỬA LỖI: Giảng viên đọc trực tiếp từ dữ liệu dùng chung global_store
+            if len(global_store["leaderboard"]) == 0:
                 st.info("Chưa có sinh viên nào hoàn thành bài tập.")
             else:
-                df_leaderboard = pd.DataFrame(st.session_state["leaderboard"])
+                df_leaderboard = pd.DataFrame(global_store["leaderboard"])
                 st.dataframe(df_leaderboard, use_container_width=True)
                 if st.button("🗑️ Xóa sạch bảng điểm & danh sách chặn"):
-                    st.session_state["leaderboard"] = []
+                    global_store["leaderboard"] = []
                     global_store["submitted_students"] = []
                     st.rerun()
                     
