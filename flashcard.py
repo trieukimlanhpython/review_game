@@ -25,7 +25,7 @@ def get_global_store():
         "time_limit": 5,          
         "allow_review": True,     
         "submitted_students": [],  # Danh sách chặn sinh viên làm lại lần 2
-        "leaderboard": []         # SỬA LỖI: Đưa leaderboard vào kho lưu trữ dùng chung toàn hệ thống
+        "leaderboard": []         
     }
 
 global_store = get_global_store()
@@ -182,14 +182,12 @@ if url_role == "student":
 
     if is_quiz_finished or is_matching_finished:
         if not st.session_state.get("done_and_logged", False):
-            # Lưu trạng thái đã hoàn thành vào hệ thống để chặn làm lại
             if student_name not in global_store["submitted_students"]:
                 global_store["submitted_students"].append(student_name)
             
             type_label = "Flashcard (Quiz)" if game_type == "Flashcard" else "Matching Game"
             final_elapsed = min(elapsed, total_allowed_seconds)
             
-            # SỬA LỖI: Đẩy trực tiếp kết quả vào global_store để Giảng viên nhìn thấy ngay lập tức
             global_store["leaderboard"].append({
                 "Thời gian nộp": time.strftime('%H:%M:%S - %d/%m/%Y'),
                 "Tên / Nhóm": student_name,
@@ -207,7 +205,27 @@ if url_role == "student":
             st.success(f"🎉 Bạn đã hoàn thành bài tập ôn tập xuất sắc!")
             
         st.info(f"Điểm số ghi nhận: {st.session_state['score']}/{len(data)} trong {min(elapsed, total_allowed_seconds)}s")
-        st.warning("🔒 Bạn đã hoàn thành lượt làm bài độc nhất. Không thể làm lại đề này.")
+        st.warning("🔒 Bạn đã hoàn thành lượt làm bài độc nhất cho đề này.")
+        
+        # THÊM MỚI: NÚT BẤM LÀM BÀI TẬP KHÁC DÀNH CHO SV
+        st.write("---")
+        if st.button("🔄 Làm bài tập khác", type="primary", use_container_width=True):
+            # Xóa các trạng thái liên quan đến lượt làm bài cũ của SV để sẵn sàng nhận đề mới
+            st.session_state["flashcard_data"] = None
+            st.session_state["game_type"] = None
+            st.session_state["current_card"] = 0
+            st.session_state["matched"] = []
+            st.session_state["opened_cards"] = []
+            st.session_state["score"] = 0
+            st.session_state["student_info"] = None
+            st.session_state["start_time"] = None
+            st.session_state["quiz_feedback"] = None
+            st.session_state["done_and_logged"] = False
+            st.session_state["is_timeout"] = False
+            if "deck" in st.session_state: del st.session_state["deck"]
+            if "shuffled_answers" in st.session_state: del st.session_state["shuffled_answers"]
+            st.rerun()
+            
         st.stop()
 
     # HIỂN THỊ ĐỒNG HỒ ĐẾM NGƯỢC
@@ -391,7 +409,6 @@ else:
                     global_store["time_limit"] = time_limit_input
                     global_store["allow_review"] = allow_review_input
                     global_store["submitted_students"] = [] 
-                    # Giữ nguyên bảng điểm cũ khi phát đề mới, trừ khi chủ động bấm xóa ở Tab kết quả
                     
                     st.session_state["current_card"] = 0
                     st.session_state["current_card_gv"] = 0
@@ -491,16 +508,26 @@ else:
 
         with tab_results:
             st.subheader("📝 Kết quả làm bài của sinh viên")
-            # SỬA LỖI: Giảng viên đọc trực tiếp từ dữ liệu dùng chung global_store
+            
+            # THÊM MỚI: THANH ĐIỀU HƯỚNG NÚT BẤM CẬP NHẬT DỮ LIỆU CHỦ ĐỘNG
+            c_refresh, c_clear = st.columns([1, 1])
+            with c_refresh:
+                if st.button("🔄 Cập nhật dữ liệu mới", type="primary", use_container_width=True):
+                    st.toast("Đang tải dữ liệu mới nhất... ⏳")
+                    st.rerun()
+            with c_clear:
+                if st.button("🗑️ Xóa sạch bảng điểm & danh sách chặn", use_container_width=True):
+                    global_store["leaderboard"] = []
+                    global_store["submitted_students"] = []
+                    st.success("Hệ thống đã làm sạch bảng điểm thành công!")
+                    st.rerun()
+            
+            st.write("---")
             if len(global_store["leaderboard"]) == 0:
                 st.info("Chưa có sinh viên nào hoàn thành bài tập.")
             else:
                 df_leaderboard = pd.DataFrame(global_store["leaderboard"])
                 st.dataframe(df_leaderboard, use_container_width=True)
-                if st.button("🗑️ Xóa sạch bảng điểm & danh sách chặn"):
-                    global_store["leaderboard"] = []
-                    global_store["submitted_students"] = []
-                    st.rerun()
                     
     else:
         st.info("💡 Bạn đang ở link quản trị nhưng chọn chế độ hiển thị xem thử của Sinh viên. Để gửi link chuẩn cho lớp, hãy dùng đường dẫn bên dưới:")
