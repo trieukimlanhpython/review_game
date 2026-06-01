@@ -202,10 +202,10 @@ if url_role == "student":
         if st.session_state["is_timeout"]:
             st.error(f"⏰ Hết giờ làm bài! Hệ thống đã tự động nộp bài làm của bạn.")
         else:
-            st.success(f"🎉 Bạn đã hoàn thành bài tập ôn tập xuất sắc!")
+            st.success(f"🎉 Bạn đã hoàn thành bài tập ôn tập!")
             
         st.info(f"Điểm số ghi nhận: {st.session_state['score']}/{len(data)} trong {min(elapsed, total_allowed_seconds)}s")
-        st.warning("🔒 Bạn đã hoàn thành lượt làm bài độc nhất cho đề này.")
+        st.warning("🔒 Bạn đã hoàn thành lượt làm bài cho đề này.")
         
         # THÊM MỚI: NÚT BẤM LÀM BÀI TẬP KHÁC DÀNH CHO SV
         st.write("---")
