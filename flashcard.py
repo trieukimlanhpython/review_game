@@ -9,6 +9,7 @@ import streamlit as st
 import pandas as pd
 import random
 import time
+from datetime import datetime, timedelta  # THÊM THƯ VIỆN ĐỂ XỬ LÝ MÚI GIỜ VIỆT NAM
 
 # Cấu hình trang rộng để hiển thị các ô ghép cặp đẹp hơn
 st.set_page_config(layout="wide", page_title="Review App", page_icon="🎓")
@@ -24,7 +25,7 @@ def get_global_store():
         "game_type": None,
         "time_limit": 5,          
         "allow_review": True,     
-        "submitted_students": [],  # Danh sách chặn sinh viên làm lại lần 2
+        "submitted_students": [],  
         "leaderboard": []         
     }
 
@@ -177,10 +178,9 @@ if url_role == "student":
             st.session_state["score"] = st.session_state["score"]
 
     # --- SV: HOÀN THÀNH BÀI (LOGIC NỘP BÀI TỰ ĐỘNG HOẶC CHỦ ĐỘNG) ---
-    is_quiz_finished = (game_type == "Flashcard" and st.session_state["current_card"] >= len(data))
-    is_matching_finished = (game_type == "Matching Game" and (st.session_state["score"] == len(data) or st.session_state["is_timeout"]))
-
-    if is_quiz_finished or is_matching_finished:
+    if (game_type == "Flashcard" and st.session_state["current_card"] >= len(data)) or \
+       (game_type == "Matching Game" and (st.session_state["score"] == len(data) or st.session_state["is_timeout"])):
+        
         if not st.session_state.get("done_and_logged", False):
             if student_name not in global_store["submitted_students"]:
                 global_store["submitted_students"].append(student_name)
@@ -188,8 +188,12 @@ if url_role == "student":
             type_label = "Flashcard (Quiz)" if game_type == "Flashcard" else "Matching Game"
             final_elapsed = min(elapsed, total_allowed_seconds)
             
+            # SỬA LỖI LỆCH GIỜ: Lấy thời gian UTC của server rồi cộng thêm 7 tiếng (Múi giờ Việt Nam)
+            vn_now = datetime.utcnow() + timedelta(hours=7)
+            vn_time_str = vn_now.strftime('%H:%M:%S - %d/%m/%Y')
+            
             global_store["leaderboard"].append({
-                "Thời gian nộp": time.strftime('%H:%M:%S - %d/%m/%Y'),
+                "Thời gian nộp": vn_time_str,  # Sử dụng chuỗi thời gian đã đồng bộ theo giờ VN
                 "Tên / Nhóm": student_name,
                 "Loại bài tập": type_label,
                 "Kết quả điểm": f"{st.session_state['score']} / {len(data)}",
@@ -202,15 +206,13 @@ if url_role == "student":
         if st.session_state["is_timeout"]:
             st.error(f"⏰ Hết giờ làm bài! Hệ thống đã tự động nộp bài làm của bạn.")
         else:
-            st.success(f"🎉 Bạn đã hoàn thành bài tập ôn tập!")
+            st.success(f"🎉 Bạn đã hoàn thành bài tập ôn tập xuất sắc!")
             
         st.info(f"Điểm số ghi nhận: {st.session_state['score']}/{len(data)} trong {min(elapsed, total_allowed_seconds)}s")
-        st.warning("🔒 Bạn đã hoàn thành lượt làm bài cho đề này.")
+        st.warning("🔒 Bạn đã hoàn thành lượt làm bài độc nhất cho đề này.")
         
-        # THÊM MỚI: NÚT BẤM LÀM BÀI TẬP KHÁC DÀNH CHO SV
         st.write("---")
         if st.button("🔄 Làm bài tập khác", type="primary", use_container_width=True):
-            # Xóa các trạng thái liên quan đến lượt làm bài cũ của SV để sẵn sàng nhận đề mới
             st.session_state["flashcard_data"] = None
             st.session_state["game_type"] = None
             st.session_state["current_card"] = 0
@@ -509,7 +511,6 @@ else:
         with tab_results:
             st.subheader("📝 Kết quả làm bài của sinh viên")
             
-            # THÊM MỚI: THANH ĐIỀU HƯỚNG NÚT BẤM CẬP NHẬT DỮ LIỆU CHỦ ĐỘNG
             c_refresh, c_clear = st.columns([1, 1])
             with c_refresh:
                 if st.button("🔄 Cập nhật dữ liệu mới", type="primary", use_container_width=True):
