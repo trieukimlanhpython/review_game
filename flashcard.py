@@ -129,8 +129,8 @@ if url_role == "student":
     game_type = st.session_state.get("game_type")
 
     if st.session_state["student_info"] is None:
-        st.subheader("🔒 Đăng nhập thông tin học viên")
-        info_input = st.text_input("Nhập Mã số sinh viên / Tên nhóm của bạn:", placeholder="Ví dụ: SV112233")
+        st.subheader("🔒 Đăng nhập thông tin sinh viên / Nhóm")
+        info_input = st.text_input("Nhập Mã số sinh viên / Tên nhóm của bạn:", placeholder="Ví dụ: 0506112300xx")
         
         if st.button("🎯 Xác nhận & Vào học"):
             if info_input.strip() == "":
@@ -197,7 +197,7 @@ if url_role == "student":
             if is_correct:
                 st.success(f"🎉 **Chính xác!** Bạn đã chọn đúng đáp án: **{selected_ans}**")
             else:
-                st.error(f"❌ **Sai rồi!** Bạn chọn: *{selected_ans}*. \n\n 👉 Đáp án đúng phải là: **{row['solution']}**")
+                st.error(f"❌ **Sai rồi!** Bạn chọn: *{selected_ans}*.")
             
             st.write("---")
             if st.button("⏩ Chuyển sang câu tiếp theo ngay lập tức", type="primary"):
@@ -228,7 +228,7 @@ if url_role == "student":
 
     # --- SV: MATCHING GAME ---
     elif game_type == "Matching Game":
-        st.subheader("🧩 Trò chơi ghép cặp")
+        st.subheader("🧩 Matching Game")
 
         st.markdown("""
             <style>
@@ -331,7 +331,7 @@ else:
                 
                 df = st.session_state["raw_df"]
                 st.write("👉 Xem trước dữ liệu file vừa upload:")
-                st.dataframe(df.head(3), use_container_width=True)
+                st.dataframe(df, use_container_width=True)
 
                 required_cols = ["question", "solution", "note"]
                 if not all(col in df.columns for col in required_cols):
