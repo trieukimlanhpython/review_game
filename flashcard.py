@@ -14,47 +14,52 @@ import time
 st.set_page_config(layout="wide", page_title="Review App", page_icon="🎓")
 
 # ================================
-# TỐI ƯU CSS TOÀN CỤC (ÉP KHUNG CHO CONTAINER)
+# TỐI ƯU CSS TOÀN CỤC (ĐỊNH DẠNG KHUNG FLASHCARD CHUẨN)
 # ================================
 st.markdown("""
     <style>
-    /* Định dạng chung cho khối container chứa câu hỏi/đáp án */
-    .flashcard-container {
+    /* Khung bo tròn chữ nhật bao quanh */
+    .flashcard-box {
         border-radius: 20px !important; 
         padding: 40px 30px !important; 
         text-align: center !important; 
         min-height: 200px !important;
         background-color: var(--background-color) !important; 
+        color: var(--text-color) !important;
         margin-bottom: 25px !important;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
         
-        /* Căn giữa tuyệt đối cho mọi thành phần con bên trong */
         display: flex !important;
         flex-direction: column !important;
         justify-content: center !important;
         align-items: center !important;
     }
     
-    /* Màu viền riêng cho Câu hỏi và Đáp án */
-    .fc-question { border: 3px solid #3b82f6 !important; }
-    .fc-solution { border: 3px solid #10b981 !important; }
+    /* Màu viền riêng biệt */
+    .border-question { border: 3px solid #3b82f6 !important; }
+    .border-solution { border: 3px solid #10b981 !important; }
 
-    /* Định dạng nhãn text nhỏ phía trên */
-    .card-label {
+    /* Định dạng nhãn chữ nhỏ ở trên */
+    .card-tag {
         font-size: 14px !important; 
         opacity: 0.7 !important; 
         font-weight: normal !important; 
-        margin-bottom: 10px !important;
+        margin-bottom: 15px !important;
         text-align: center !important;
-        display: block !important;
     }
     
-    /* Ép tất cả các văn bản, công thức toán bên trong container phải to và canh giữa */
-    .flashcard-container * {
+    /* Định dạng văn bản chính (gồm cả chữ thường, markdown và công thức toán) */
+    .card-text {
         font-size: 24px !important;
         font-weight: bold !important;
         line-height: 1.6 !important;
         text-align: center !important;
+        display: inline-block !important;
+    }
+    
+    /* Đồng bộ cỡ chữ cho các ký tự KaTeX/Toán học bên trong khung */
+    .card-text .katex, .card-text .katex * {
+        font-size: 26px !important; 
     }
     </style>
 """, unsafe_allow_html=True)
@@ -162,13 +167,16 @@ if url_role == "student":
 
         st.metric("Tiến độ câu hỏi", f"{idx + 1} / {len(data)}")
         
-        # FIX: Ép class CSS trực tiếp vào khối container của Streamlit
-        st.markdown('<span class="card-label">❓ Câu hỏi</span>', unsafe_allow_html=True)
-        with st.container(border=False):
-            # Thẻ div bọc toàn bộ khối markdown câu hỏi
-            st.markdown(f'<div class="flashcard-container fc-question">', unsafe_allow_html=True)
-            st.markdown(row['question']) 
-            st.markdown('</div>', unsafe_allow_html=True)
+        # --- FIX CHI TIẾT: Khóa chữ vào trong khung cho SV ---
+        st.markdown(
+            f"""
+            <div class="flashcard-box border-question">
+                <div class="card-tag">❓ Câu hỏi</div>
+                <div class="card-text">{row['question']}</div>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
 
         if st.session_state["quiz_feedback"] is not None:
             is_correct, selected_ans = st.session_state["quiz_feedback"]
@@ -360,18 +368,22 @@ else:
                     if st.session_state["flipped_gv"]:
                         txt_gv = row_gv['solution']
                         label_gv = f"💡 [Mặt sau - ĐÁP ÁN CÂU {idx_gv + 1}]"
-                        class_type = "fc-solution"
+                        class_type = "border-solution"
                     else:
                         txt_gv = row_gv['question']
                         label_gv = f"❓ [Mặt trước - CÂU HỎI CÂU {idx_gv + 1}]"
-                        class_type = "fc-question"
+                        class_type = "border-question"
                     
-                    # FIX: Áp dụng cấu trúc mới cho khung Preview GV
-                    st.markdown(f'<span class="card-label">{label_gv}</span>', unsafe_allow_html=True)
-                    with st.container(border=False):
-                        st.markdown(f'<div class="flashcard-container {class_type}">', unsafe_allow_html=True)
-                        st.markdown(txt_gv)
-                        st.markdown('</div>', unsafe_allow_html=True)
+                    # --- FIX CHI TIẾT: Khóa chữ vào trong khung cho GV ---
+                    st.markdown(
+                        f"""
+                        <div class="flashcard-box {class_type}">
+                            <div class="card-tag">{label_gv}</div>
+                            <div class="card-text">{txt_gv}</div>
+                        </div>
+                        """, 
+                        unsafe_allow_html=True
+                    )
                     
                     col_prev, col_flip, col_next = st.columns([1, 2, 1])
                     with col_prev:
