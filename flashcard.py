@@ -5,13 +5,6 @@ Created on Sun May 31 08:48:59 2026
 streamlit run "/Users/trieukimlanh/Library/CloudStorage/GoogleDrive-lanhtk@hub.edu.vn/My Drive/Spyder/app/flashcard/flashcard.py"
 @author: trieukimlanh
 """
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Sun May 31 08:48:59 2026
-streamlit run "/Users/trieukimlanh/Library/CloudStorage/GoogleDrive-lanhtk@hub.edu.vn/My Drive/Spyder/app/flashcard/flashcard.py"
-@author: trieukimlanh
-"""
 import streamlit as st
 import pandas as pd
 import random
