@@ -28,68 +28,85 @@ def get_global_game_data():
 global_store = get_global_game_data()
 
 # ================================
-# 🛠️ HỆ THỐNG CSS ĐỘC LẬP - KHÔNG ẢNH HƯỞNG ĐẾN NÚT MẶC ĐỊNH
+# 🎨 HỆ THỐNG CSS ĐỘC LẬP CHUẨN ĐẸP 100%
 # ================================
 st.markdown("""
     <style>
     /* ----------------------------------
-       1. ĐỊNH DẠNG KHUNG HÌNH CHỮ NHẬT CỐ ĐỊNH CHO FLASHCARD
+       1. KHUNG HÌNH CHỮ NHẬT TO CHO FLASHCARD (LIKE A CARD)
     ---------------------------------- */
-    /* Ép khung container bọc ngoài của Streamlit */
-    .fc-box > div[data-testid="stVerticalBlockBorder"] {
-        border-radius: 20px !important;
-        min-height: 220px !important;  /* Chiều cao cố định tạo hình chữ nhật cân đối */
-        padding: 40px 30px !important;
+    /* Tạo lớp bọc ngoài ép kiểu dáng thẻ bài chữ nhật lớn cho Container */
+    .custom-flashcard > div[data-testid="stVerticalBlockBorder"] {
+        border-radius: 24px !important;
+        min-height: 320px !important;  /* Tăng độ cao cố định để tạo hình chiếc thẻ bài to, rõ ràng */
+        max-width: 800px !important;   /* Giới hạn độ rộng để form cân đối giống chiếc thẻ */
+        margin: 0 auto 30px auto !important; /* Căn giữa màn hình */
+        padding: 50px 40px !important; /* Tạo khoảng trống thông thoáng bên trong thẻ */
         display: flex !important;
         flex-direction: column !important;
         justify-content: center !important;
         align-items: center !important;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important; /* Hiệu ứng đổ bóng nổi bật */
+        transition: transform 0.3s ease !important;
     }
     
-    /* Màu viền xanh dương cho câu hỏi */
-    .border-blue > div[data-testid="stVerticalBlockBorder"] {
-        border: 3px solid #3b82f6 !important;
+    /* Viền xanh dương dày dặn cho Câu hỏi */
+    .fc-blue > div[data-testid="stVerticalBlockBorder"] {
+        border: 4px solid #3b82f6 !important;
+        background-color: #f8fafc !important; /* Nền sáng nhẹ dịu mắt */
     }
     
-    /* Màu viền xanh lá cho đáp án */
-    .border-green > div[data-testid="stVerticalBlockBorder"] {
-        border: 3px solid #10b981 !important;
+    /* Viền xanh lá dày dặn cho Đáp án */
+    .fc-green > div[data-testid="stVerticalBlockBorder"] {
+        border: 4px solid #10b981 !important;
+        background-color: #f0fdf4 !important; /* Nền xanh lá nhạt */
     }
 
-    /* Phóng to chữ và ký tự toán học KaTeX ($$) bên trong Flashcard, tự động căn giữa */
-    .fc-box .stMarkdown, 
-    .fc-box .stMarkdown p,
-    .fc-box .katex, 
-    .fc-box .katex * {
-        font-size: 24px !important;
+    /* Định dạng văn bản và LaTeX ($$) bên trong Flashcard */
+    .custom-flashcard .stMarkdown, 
+    .custom-flashcard .stMarkdown p,
+    .custom-flashcard .katex, 
+    .custom-flashcard .katex * {
+        font-size: 28px !important; /* Tăng cỡ chữ to rõ phục vụ trình chiếu/ôn tập */
         font-weight: bold !important;
         text-align: center !important;
         line-height: 1.6 !important;
+        color: #1e293b !important;
     }
     
     .card-tag-text {
-        font-size: 14px;
+        font-size: 15px;
         opacity: 0.7;
-        font-weight: normal;
-        margin-bottom: 8px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 12px;
         text-align: center;
         display: block;
     }
 
     /* ----------------------------------
-       2. ĐỊNH DẠNG CÁC Ô LƯỚI TRÒ CHƠI MATCHING GAME 
+       2. LƯỚI Ô CHỮ ĐỀU NHAU TĂM TẮP CHO MATCHING GAME
     ---------------------------------- */
-    /* Chỉ ép chiều cao cố định và bo tròn cho các nút nằm trong vùng chơi Matching Game */
-    .matching-area div.stButton > button {
-        height: 120px !important;       /* Chiều cao cố định giúp các ô đều nhau tăm tắp */
-        border: 2.5px solid #4a148c !important;
-        border-radius: 12px !important;  /* Bo tròn góc ô chữ nhật */
+    /* Chỉ can thiệp vào các nút bấm nằm hoàn toàn trong vùng có class .matching-grid-area */
+    .matching-grid-area div.stButton > button {
+        height: 120px !important;       /* Chiều cao cố định bắt buộc cho tất cả các ô */
+        border: 2.5px solid #4a148c !important; /* Viền tím đặc trưng của game ghép cặp */
+        border-radius: 14px !important;  /* Bo tròn góc ô chữ nhật cân đối */
         white-space: normal !important;
         word-wrap: break-word !important;
         font-weight: bold !important;
         font-size: 16px !important;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05) !important;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.04) !important;
+    }
+    
+    /* Hiệu ứng chỉ định khoảng cách giữa các ô lưới trống */
+    .matching-grid-area .empty-slot {
+        height: 120px; 
+        margin-bottom: 1rem; 
+        border: 2.5px dashed #cbd5e1; 
+        border-radius: 14px;
+        background-color: #f8fafc;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -153,7 +170,7 @@ if url_role == "student":
     game_type = global_store["game_type"]
     
     if data is None:
-        st.warning("⏳ Giảng viên hiện chưa phát đề bài nào. Vui lòng đợi giảng viên kích hoạt phát đề bài tập!")
+        st.warning("⏳ Giảng viên hiện chưa phát đề bài nào hoặc hệ thống đang được khởi động lại. Vui lòng đợi giảng viên bật đề bài tập!")
         st.stop()
 
     if st.session_state["student_info"] is None:
@@ -209,9 +226,9 @@ if url_role == "student":
 
         st.metric("Tiến độ câu hỏi", f"{idx + 1} / {len(data)}")
         
-        # HIỂN THỊ FLASHCARD CHỮ NHẬT CỐ ĐỊNH + DỊCH LA-TEX MƯỢT MÀ
-        st.markdown('<span class="card-tag-text">❓ Câu hỏi</span>', unsafe_allow_html=True)
-        st.markdown('<div class="fc-box border-blue">', unsafe_allow_html=True)
+        # HIỂN THỊ FLASHCARD HÌNH CHỮ NHẬT TO CÂN ĐỐI CHO HỌC VIÊN
+        st.markdown('<span class="card-tag-text">❓ CÂU HỎI HIỆN TẠI</span>', unsafe_allow_html=True)
+        st.markdown('<div class="custom-flashcard fc-blue">', unsafe_allow_html=True)
         with st.container(border=True):
             st.markdown(row['question']) 
         st.markdown('</div>', unsafe_allow_html=True)
@@ -290,13 +307,13 @@ if url_role == "student":
                 st.rerun()
             st.stop()
 
-        # Ép riêng class bọc để tạo các ô chữ nhật bo tròn đều nhau tăm tắp
-        st.markdown('<div class="matching-area">', unsafe_allow_html=True)
+        # ÁP DỤNG LỚP BAO CHỈ ĐỊNH Ô LƯỚI ĐỀU NHAU TĂM TẮP CHO SINH VIÊN
+        st.markdown('<div class="matching-grid-area">', unsafe_allow_html=True)
         cols = st.columns(4)
         for i, card in enumerate(deck):
             with cols[i % 4]:
                 if i in st.session_state["matched"]:
-                    st.markdown("<div style='height:120px; margin-bottom:1rem; border:2px dashed #eee; border-radius:12px;'></div>", unsafe_allow_html=True) 
+                    st.markdown("<div class='empty-slot'></div>", unsafe_allow_html=True) 
                 elif i in st.session_state["opened_cards"]:
                     if st.button(f"📍 {card[2]}", key=f"match_{i}", use_container_width=True, type="primary"):
                         st.session_state["opened_cards"].remove(i)
@@ -390,14 +407,15 @@ else:
                     if st.session_state["flipped_gv"]:
                         txt_gv = row_gv['solution']
                         label_gv = f"💡 [Mặt sau - ĐÁP ÁN CÂU {idx_gv + 1}]"
-                        border_color_class = "border-green"
+                        border_color_class = "fc-green"
                     else:
                         txt_gv = row_gv['question']
                         label_gv = f"❓ [Mặt trước - CÂU HỎI CÂU {idx_gv + 1}]"
-                        border_color_class = "border-blue"
+                        border_color_class = "fc-blue"
                     
+                    # PREVIEW THẺ CARD HÌNH CHỮ NHẬT TO CHO GIẢNG VIÊN
                     st.markdown(f'<span class="card-tag-text">{label_gv}</span>', unsafe_allow_html=True)
-                    st.markdown(f'<div class="fc-box {border_color_class}">', unsafe_allow_html=True)
+                    st.markdown(f'<div class="custom-flashcard {border_color_class}">', unsafe_allow_html=True)
                     with st.container(border=True):
                         st.markdown(txt_gv)
                     st.markdown('</div>', unsafe_allow_html=True)
@@ -430,7 +448,9 @@ else:
                         st.session_state["deck_gv"] = deck_gv
                     
                     deck_gv = st.session_state["deck_gv"]
-                    st.markdown('<div class="matching-area">', unsafe_allow_html=True)
+                    
+                    # ÁP DỤNG LỚP BAO CHỈ ĐỊNH Ô LƯỚI ĐỀU NHAU TĂM TẮP CHO GIẢNG VIÊN QUẢN TRỊ
+                    st.markdown('<div class="matching-grid-area">', unsafe_allow_html=True)
                     cols_gv = st.columns(4)
                     for i, card in enumerate(deck_gv):
                         with cols_gv[i % 4]:
