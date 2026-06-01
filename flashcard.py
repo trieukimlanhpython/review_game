@@ -432,7 +432,7 @@ else:
 
             if st.session_state["flashcard_data"] is not None:
                 st.markdown("---")
-                st.subheader("👀 Khung xem trước giao diện")
+                st.subheader("👀 Hiển thị đề thi")
                 
                 preview_data = st.session_state["flashcard_data"]
                 st.info(f"Dạng bài đang phát: **{st.session_state['game_type']}** | Thời gian quy định: **{global_store['time_limit']} phút**")
