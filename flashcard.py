@@ -14,6 +14,51 @@ import time
 st.set_page_config(layout="wide", page_title="Review App", page_icon="🎓")
 
 # ================================
+# NHÚNG CSS TOÀN CỤC ĐỂ TẠO KHUNG FLASHCARD
+# (Giải pháp này giúp chữ bên trong hiển thị được cả LaTeX/Toán học lẫn Markdown)
+# ================================
+st.markdown("""
+    <style>
+    .custom-flashcard {
+        border-radius: 20px; 
+        padding: 40px 20px; 
+        text-align: center; 
+        min-height: 180px;
+        background-color: var(--background-color); 
+        color: var(--text-color);
+        margin-bottom: 25px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+    .card-question {
+        border: 3px solid #3b82f6;
+    }
+    .card-solution {
+        border: 3px solid #10b981;
+    }
+    .card-label {
+        font-size: 14px; 
+        opacity: 0.7; 
+        font-weight: normal; 
+        margin-bottom: 15px;
+        text-align: center;
+        display: block;
+    }
+    /* Ép text của Streamlit bên trong thẻ này phải to và căn giữa */
+    .custom-flashcard p, .custom-flashcard span, .custom-flashcard div {
+        font-size: 24px !important;
+        font-weight: bold !important;
+        line-height: 1.5 !important;
+        text-align: center !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+
+# ================================
 # ĐỌC THAM SỐ URL (MẶC ĐỊNH LÀ GV)
 # ================================
 url_params = st.query_params
@@ -29,9 +74,9 @@ if "game_type" not in st.session_state:
 if "flipped_gv" not in st.session_state:
     st.session_state["flipped_gv"] = False
 if "current_card_gv" not in st.session_state:
-    st.session_state["current_card_gv"] = 0  # Quản lý câu hiện tại khi GV preview
+    st.session_state["current_card_gv"] = 0  
 if "current_card" not in st.session_state:
-    st.session_state["current_card"] = 0     # Quản lý câu hiện tại bên SV
+    st.session_state["current_card"] = 0     
 if "matched" not in st.session_state:
     st.session_state["matched"] = []
 if "opened_cards" not in st.session_state:
@@ -44,189 +89,15 @@ if "leaderboard" not in st.session_state:
     st.session_state["leaderboard"] = []
 if "start_time" not in st.session_state:
     st.session_state["start_time"] = None
-
-# Biến tạm lưu trạng thái phản hồi trắc nghiệm bên SV để hiển thị thông báo lâu hơn
 if "quiz_feedback" not in st.session_state:
     st.session_state["quiz_feedback"] = None
 
 # ================================
-# PHÂN QUYỀN GIAO DIỆN THEO URL
+# XỬ LÝ RẼ NHÁNH TUYỆT ĐỐI THEO URL
 # ================================
+
+# NHÁNH 1: SINH VIÊN (?role=student)
 if url_role == "student":
-    role = "Sinh viên"
-else:
-    st.sidebar.title("🎓 Chế độ hệ thống")
-    role = st.sidebar.radio("Bạn là:", ["Giảng viên", "Sinh viên"])
-
-# ================================
-# CHẾ ĐỘ: GIẢNG VIÊN
-# ================================
-if role == "Giảng viên":
-    password = st.sidebar.text_input("Nhập password để quản lý", type="password")
-    if password != "123":
-        st.warning("🔒 Vui lòng nhập đúng password để truy cập quyền Giảng viên.")
-        st.stop()
-
-    st.title("👨‍🏫 Khu vực Quản lý của Giảng viên")
-    tab_create, tab_results = st.tabs(["🚀 Tạo & Phát Đề", "📊 Bảng Điểm Sinh Viên"])
-    
-    with tab_create:
-        uploaded_file = st.file_uploader("Upload file câu hỏi (CSV)", type=["csv"])
-
-        if uploaded_file:
-            if "raw_df" not in st.session_state:
-                st.session_state["raw_df"] = pd.read_csv(uploaded_file)
-            
-            df = st.session_state["raw_df"]
-            st.write("👉 Xem trước dữ liệu file vừa upload:")
-            st.dataframe(df.head(3), use_container_width=True)
-
-            required_cols = ["question", "solution", "note"]
-            if not all(col in df.columns for col in required_cols):
-                st.error(f"❌ File CSV thiếu cột. Cần có đủ chính xác 3 cột tên: {required_cols}")
-                st.stop()
-
-            notes = df["note"].dropna().unique().tolist()
-            selected_note = st.selectbox("Lọc câu hỏi theo Phân loại (Cột Note)", notes)
-            df_filtered = df[df["note"] == selected_note]
-
-            max_q = len(df_filtered)
-            if max_q == 0:
-                st.warning("Không có câu hỏi nào thuộc phân loại này!")
-            else:
-                num_q = st.slider("Chọn số lượng câu cho đề game", 1, max_q, min(5, max_q))
-                game_type = st.radio("Chọn hình thức ôn tập", ["Flashcard", "Matching Game"])
-
-                if st.button("🚀 KHỞI TẠO VÀ PHÁT ĐỀ"):
-                    st.session_state["flashcard_data"] = df_filtered.sample(num_q).reset_index(drop=True)
-                    st.session_state["game_type"] = game_type
-                    
-                    # Reset tất cả trạng thái
-                    st.session_state["current_card"] = 0
-                    st.session_state["current_card_gv"] = 0
-                    st.session_state["flipped_gv"] = False
-                    st.session_state["matched"] = []
-                    st.session_state["opened_cards"] = []
-                    st.session_state["score"] = 0
-                    st.session_state["start_time"] = None
-                    st.session_state["quiz_feedback"] = None
-                    if "deck" in st.session_state: del st.session_state["deck"]
-                    if "deck_gv" in st.session_state: del st.session_state["deck_gv"]
-                    if "shuffled_answers" in st.session_state: del st.session_state["shuffled_answers"]
-
-                    st.success("🎉 ĐỀ ĐÃ ĐƯỢC TẠO THÀNH CÔNG!")
-                    st.rerun()
-
-        # --- KHU VỰC PREVIEW BÊN GV ---
-        if st.session_state["flashcard_data"] is not None:
-            st.markdown("---")
-            st.subheader("👀 Khung xem trước giao diện")
-            
-            preview_data = st.session_state["flashcard_data"]
-            st.info(f"Dạng bài đang phát: **{st.session_state['game_type']}** | Tổng số câu: **{len(preview_data)}**")
-
-            # Preview Flashcard dạng chữ nhật bo tròn kèm nút Next/Prev
-            if st.session_state["game_type"] == "Flashcard":
-                total_gv_cards = len(preview_data)
-                idx_gv = st.session_state["current_card_gv"]
-                row_gv = preview_data.iloc[idx_gv]
-                
-                st.write(f"📌 **Đang xem câu hỏi số:** {idx_gv + 1} / {total_gv_cards}")
-                
-                if st.session_state["flipped_gv"]:
-                    txt_gv = row_gv['solution']
-                    label_gv = f"💡 [Mặt sau - ĐÁP ÁN CÂU {idx_gv + 1}]"
-                    border_color = "#10b981" 
-                else:
-                    txt_gv = row_gv['question']
-                    label_gv = f"❓ [Mặt trước - CÂU HỎI CÂU {idx_gv + 1}]"
-                    border_color = "#3b82f6" 
-                
-                st.markdown(
-                    f"""
-                    <div style="
-                        border: 3px solid {border_color}; 
-                        border-radius: 20px; 
-                        padding: 50px 30px; 
-                        text-align: center; 
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                        min-height: 180px;
-                        background-color: var(--background-color); 
-                        color: var(--text-color);
-                        margin-bottom: 20px;
-                        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-                    ">
-                        <span style="font-size: 14px; opacity: 0.7; font-weight: normal; margin-bottom: 10px;">{label_gv}</span>
-                        <b style="font-size: 24px; line-height: 1.5;">{txt_gv}</b>
-                    </div>
-                    """, unsafe_allow_html=True
-                )
-                
-                # Thanh điều hướng của GV: Prev | Flip | Next
-                col_prev, col_flip, col_next = st.columns([1, 2, 1])
-                with col_prev:
-                    if st.button("⏪ Previous", use_container_width=True, disabled=(idx_gv == 0)):
-                        st.session_state["current_card_gv"] -= 1
-                        st.session_state["flipped_gv"] = False
-                        st.rerun()
-                with col_flip:
-                    if st.button("🔄 Lật mặt thẻ (Flip)", use_container_width=True, type="primary"):
-                        st.session_state["flipped_gv"] = not st.session_state["flipped_gv"]
-                        st.rerun()
-                with col_next:
-                    if st.button("⏩ Next", use_container_width=True, disabled=(idx_gv == total_gv_cards - 1)):
-                        st.session_state["current_card_gv"] += 1
-                        st.session_state["flipped_gv"] = False
-                        st.rerun()
-
-            # Preview Matching Game
-            elif st.session_state["game_type"] == "Matching Game":
-                st.write("📊 **Giao diện lưới ô chữ (Mô phỏng hiển thị mở sẵn):**")
-                st.markdown("""
-                    <style>
-                    div[data-testid="stVerticalBlock"] div.stButton > button {
-                        height: 110px !important;
-                        border: 2px solid #4a148c !important;
-                        border-radius: 10px !important;
-                        white-space: normal !important;
-                        word-wrap: break-word !important;
-                        font-weight: bold !important;
-                    }
-                    </style>
-                """, unsafe_allow_html=True)
-
-                if "deck_gv" not in st.session_state:
-                    deck_gv = []
-                    for i, row in preview_data.iterrows():
-                        deck_gv.append(("Q", i, row["question"]))
-                        deck_gv.append(("A", i, row["solution"]))
-                    random.shuffle(deck_gv)
-                    st.session_state["deck_gv"] = deck_gv
-                
-                deck_gv = st.session_state["deck_gv"]
-                cols_gv = st.columns(4)
-                for i, card in enumerate(deck_gv):
-                    with cols_gv[i % 4]:
-                        st.button(card[2], key=f"preview_match_{i}", use_container_width=True)
-
-    with tab_results:
-        st.subheader("📝 Kết quả làm bài của sinh viên")
-        if len(st.session_state["leaderboard"]) == 0:
-            st.info("Chưa có sinh viên nào hoàn thành bài tập.")
-        else:
-            df_leaderboard = pd.DataFrame(st.session_state["leaderboard"])
-            st.dataframe(df_leaderboard, use_container_width=True)
-            if st.button("🗑️ Xóa sạch bảng điểm"):
-                st.session_state["leaderboard"] = []
-                st.rerun()
-
-# ================================
-# CHẾ ĐỘ: SINH VIÊN
-# ================================
-else:
     st.title("🎓 Khu vực Ôn Tập Của Sinh Viên")
     
     data = st.session_state.get("flashcard_data")
@@ -236,7 +107,6 @@ else:
 
     game_type = st.session_state.get("game_type")
 
-    # ĐĂNG NHẬP SINH VIÊN
     if st.session_state["student_info"] is None:
         st.subheader("🔒 Đăng nhập thông tin học viên")
         info_input = st.text_input("Nhập Mã số sinh viên / Tên nhóm của bạn:", placeholder="Ví dụ: SV112233")
@@ -251,20 +121,9 @@ else:
         st.stop()
 
     student_name = st.session_state["student_info"]
-    
-    if url_role != "student":
-        st.sidebar.success(f"👤 Học viên: {student_name}")
-        if st.sidebar.button("Đổi tài khoản"):
-            st.session_state["student_info"] = None
-            st.session_state["start_time"] = None
-            st.rerun()
+    elapsed = int(time.time() - st.session_state["start_time"]) if st.session_state["start_time"] is not None else 0
 
-    if st.session_state["start_time"] is not None:
-        elapsed = int(time.time() - st.session_state["start_time"])
-    else:
-        elapsed = 0
-
-    # --- FLASHCARD TRẮC NGHIỆM CHỌN ĐÁP ÁN (BÊN SV) ---
+    # --- SV: FLASHCARD TRẮC NGHIỆM ---
     if game_type == "Flashcard":
         st.subheader("📝 Trắc nghiệm ôn tập kiến thức")
         
@@ -301,31 +160,13 @@ else:
 
         st.metric("Tiến độ câu hỏi", f"{idx + 1} / {len(data)}")
         
-        # Ô câu hỏi hình chữ nhật bo tròn
-        st.markdown(
-            f"""
-            <div style="
-                border: 3px solid #3b82f6; 
-                border-radius: 20px; 
-                padding: 50px 30px; 
-                text-align: center; 
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-                min-height: 180px;
-                background-color: var(--background-color); 
-                color: var(--text-color);
-                margin-bottom: 25px;
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            ">
-                <span style="font-size: 14px; opacity: 0.7; font-weight: normal; margin-bottom: 10px;">❓ Câu hỏi</span>
-                <b style="font-size: 24px; line-height: 1.5;">{row['question']}</b>
-            </div>
-            """, unsafe_allow_html=True
-        )
+        # FIX HIỂN THỊ TOÁN HỌC: Dùng st.container phối hợp CSS class bên ngoài
+        st.markdown('<span class="card-label">❓ Câu hỏi</span>', unsafe_allow_html=True)
+        with st.container():
+            st.markdown(f'<div class="custom-flashcard card-question">', unsafe_allow_html=True)
+            st.markdown(row['question']) # Cho phép tự động dịch toán học ($) và markdown thoải mái
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        # KHU VỰC HIỂN THỊ PHẢN HỒI LÂU HƠN KHI SV BẤM CHỌN
         if st.session_state["quiz_feedback"] is not None:
             is_correct, selected_ans = st.session_state["quiz_feedback"]
             if is_correct:
@@ -339,7 +180,6 @@ else:
                 st.session_state["quiz_feedback"] = None
                 st.rerun()
                 
-            # Đếm ngược thời gian hiển thị tĩnh (3 giây) trước khi tự động chuyển câu
             time.sleep(3.0)
             st.session_state["current_card"] += 1
             st.session_state["quiz_feedback"] = None
@@ -361,7 +201,7 @@ else:
                 st.session_state["current_card"] += 1
                 st.rerun()
 
-    # --- MATCHING GAME ---
+    # --- SV: MATCHING GAME ---
     elif game_type == "Matching Game":
         st.subheader("🧩 Trò chơi ghép cặp")
 
@@ -435,10 +275,157 @@ else:
                 st.session_state["score"] += 1
                 st.toast("Ghép chính xác! 👏", icon="✅")
                 st.session_state["opened_cards"] = []
-                time.sleep(1.0)  # Tăng thời gian dừng nhìn từ 0.3s lên 1.0s khi ghép ĐÚNG
+                time.sleep(1.0)  
                 st.rerun()
             else:
                 st.toast("Không khớp rồi, thử lại nhé!", icon="❌")
-                time.sleep(2.0)  # Tăng thời gian dừng nhìn từ 0.8s lên 2.0s khi ghép SAI
+                time.sleep(2.0)  
                 st.session_state["opened_cards"] = []
                 st.rerun()
+
+# NHÁNH 2: GIẢNG VIÊN (LINK MẶC ĐỊNH)
+else:
+    st.sidebar.title("🎓 Chế độ hệ thống")
+    role = st.sidebar.radio("Bạn là:", ["Giảng viên", "Sinh viên"])
+
+    if role == "Giảng viên":
+        password = st.sidebar.text_input("Nhập password để quản lý", type="password")
+        if password != "123":
+            st.warning("🔒 Vui lòng nhập đúng password để truy cập quyền Giảng viên.")
+            st.stop()
+
+        st.title("👨‍🏫 Khu vực Quản lý của Giảng viên")
+        tab_create, tab_results = st.tabs(["🚀 Tạo & Phát Đề", "📊 Bảng Điểm Sinh Viên"])
+        
+        with tab_create:
+            uploaded_file = st.file_uploader("Upload file câu hỏi (CSV)", type=["csv"])
+
+            if uploaded_file:
+                if "raw_df" not in st.session_state:
+                    st.session_state["raw_df"] = pd.read_csv(uploaded_file)
+                
+                df = st.session_state["raw_df"]
+                st.write("👉 Xem trước dữ liệu file vừa upload:")
+                st.dataframe(df.head(3), use_container_width=True)
+
+                required_cols = ["question", "solution", "note"]
+                if not all(col in df.columns for col in required_cols):
+                    st.error(f"❌ File CSV thiếu cột. Cần có đủ chính xác 3 cột tên: {required_cols}")
+                    st.stop()
+
+                notes = df["note"].dropna().unique().tolist()
+                selected_note = st.selectbox("Lọc câu hỏi theo Phân loại (Cột Note)", notes)
+                df_filtered = df[df["note"] == selected_note]
+
+                num_q = st.slider("Chọn số lượng câu cho đề game", 1, len(df_filtered), min(5, len(df_filtered))) if len(df_filtered) > 0 else 1
+                game_type = st.radio("Chọn hình thức ôn tập", ["Flashcard", "Matching Game"])
+
+                if st.button("🚀 KHỔI TẠO VÀ PHÁT ĐỀ"):
+                    st.session_state["flashcard_data"] = df_filtered.sample(num_q).reset_index(drop=True)
+                    st.session_state["game_type"] = game_type
+                    
+                    st.session_state["current_card"] = 0
+                    st.session_state["current_card_gv"] = 0
+                    st.session_state["flipped_gv"] = False
+                    st.session_state["matched"] = []
+                    st.session_state["opened_cards"] = []
+                    st.session_state["score"] = 0
+                    st.session_state["start_time"] = None
+                    st.session_state["quiz_feedback"] = None
+                    if "deck" in st.session_state: del st.session_state["deck"]
+                    if "deck_gv" in st.session_state: del st.session_state["deck_gv"]
+                    if "shuffled_answers" in st.session_state: del st.session_state["shuffled_answers"]
+
+                    st.success("🎉 ĐỀ ĐÃ ĐƯỢC TẠO THÀNH CÔNG!")
+                    st.rerun()
+
+            # --- PREVIEW BÊN GV ---
+            if st.session_state["flashcard_data"] is not None:
+                st.markdown("---")
+                st.subheader("👀 Khung xem trước giao diện")
+                
+                preview_data = st.session_state["flashcard_data"]
+                st.info(f"Dạng bài đang phát: **{st.session_state['game_type']}** | Tổng số câu: **{len(preview_data)}**")
+
+                if st.session_state["game_type"] == "Flashcard":
+                    total_gv_cards = len(preview_data)
+                    idx_gv = st.session_state["current_card_gv"]
+                    row_gv = preview_data.iloc[idx_gv]
+                    
+                    st.write(f"📌 **Đang xem câu hỏi số:** {idx_gv + 1} / {total_gv_cards}")
+                    
+                    if st.session_state["flipped_gv"]:
+                        txt_gv = row_gv['solution']
+                        label_gv = f"💡 [Mặt sau - ĐÁP ÁN CÂU {idx_gv + 1}]"
+                        class_type = "card-solution"
+                    else:
+                        txt_gv = row_gv['question']
+                        label_gv = f"❓ [Mặt trước - CÂU HỎI CÂU {idx_gv + 1}]"
+                        class_type = "card-question"
+                    
+                    # FIX HIỂN THỊ TOÁN HỌC CHO GV PREVIEW
+                    st.markdown(f'<span class="card-label">{label_gv}</span>', unsafe_allow_html=True)
+                    with st.container():
+                        st.markdown(f'<div class="custom-flashcard {class_type}">', unsafe_allow_html=True)
+                        st.markdown(txt_gv)
+                        st.markdown('</div>', unsafe_allow_html=True)
+                    
+                    col_prev, col_flip, col_next = st.columns([1, 2, 1])
+                    with col_prev:
+                        if st.button("⏪ Previous", use_container_width=True, disabled=(idx_gv == 0)):
+                            st.session_state["current_card_gv"] -= 1
+                            st.session_state["flipped_gv"] = False
+                            st.rerun()
+                    with col_flip:
+                        if st.button("🔄 Lật mặt thẻ (Flip)", use_container_width=True, type="primary"):
+                            st.session_state["flipped_gv"] = not st.session_state["flipped_gv"]
+                            st.rerun()
+                    with col_next:
+                        if st.button("⏩ Next", use_container_width=True, disabled=(idx_gv == total_gv_cards - 1)):
+                            st.session_state["current_card_gv"] += 1
+                            st.session_state["flipped_gv"] = False
+                            st.rerun()
+
+                elif st.session_state["game_type"] == "Matching Game":
+                    st.write("📊 **Giao diện lưới ô chữ (Mô phỏng hiển thị mở sẵn):**")
+                    st.markdown("""
+                        <style>
+                        div[data-testid="stVerticalBlock"] div.stButton > button {
+                            height: 110px !important;
+                            border: 2px solid #4a148c !important;
+                            border-radius: 10px !important;
+                            white-space: normal !important;
+                            word-wrap: break-word !important;
+                            font-weight: bold !important;
+                        }
+                        </style>
+                    """, unsafe_allow_html=True)
+
+                    if "deck_gv" not in st.session_state:
+                        deck_gv = []
+                        for i, row in preview_data.iterrows():
+                            deck_gv.append(("Q", i, row["question"]))
+                            deck_gv.append(("A", i, row["solution"]))
+                        random.shuffle(deck_gv)
+                        st.session_state["deck_gv"] = deck_gv
+                    
+                    deck_gv = st.session_state["deck_gv"]
+                    cols_gv = st.columns(4)
+                    for i, card in enumerate(deck_gv):
+                        with cols_gv[i % 4]:
+                            st.button(card[2], key=f"preview_match_{i}", use_container_width=True)
+
+        with tab_results:
+            st.subheader("📝 Kết quả làm bài của sinh viên")
+            if len(st.session_state["leaderboard"]) == 0:
+                st.info("Chưa có sinh viên nào hoàn thành bài tập.")
+            else:
+                df_leaderboard = pd.DataFrame(st.session_state["leaderboard"])
+                st.dataframe(df_leaderboard, use_container_width=True)
+                if st.button("🗑️ Xóa sạch bảng điểm"):
+                    st.session_state["leaderboard"] = []
+                    st.rerun()
+                    
+    else:
+        st.info("💡 Bạn đang ở link quản trị nhưng chọn chế độ hiển thị xem thử của Sinh viên. Để gửi link chuẩn cho lớp, hãy dùng đường dẫn bên dưới:")
+        st.code("https://lanh-reviewgame.streamlit.app/?role=student")
