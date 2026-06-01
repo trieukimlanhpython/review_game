@@ -5,6 +5,13 @@ Created on Sun May 31 08:48:59 2026
 streamlit run "/Users/trieukimlanh/Library/CloudStorage/GoogleDrive-lanhtk@hub.edu.vn/My Drive/Spyder/app/flashcard/flashcard.py"
 @author: trieukimlanh
 """
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun May 31 08:48:59 2026
+streamlit run "/Users/trieukimlanh/Library/CloudStorage/GoogleDrive-lanhtk@hub.edu.vn/My Drive/Spyder/app/flashcard/flashcard.py"
+@author: trieukimlanh
+"""
 import streamlit as st
 import pandas as pd
 import random
@@ -19,9 +26,16 @@ st.set_page_config(layout="wide", page_title="Review App", page_icon="🎓")
 @st.cache_resource
 def get_global_store():
     # Khởi tạo một dictionary chung cho mọi session
-    return {"flashcard_data": None, "game_type": None}
+    return {
+        "flashcard_data": None, 
+        "game_type": None,
+        "time_limit": 5,          # Thêm mặc định thời gian làm bài (phút)
+        "allow_review": True,     # Thêm mặc định tùy chọn xem lại bài
+        "submitted_students": []  # Thêm danh sách chặn sinh viên làm lại lần 2
+    }
 
 global_store = get_global_store()
+
 # ================================
 # TỐI ƯU CSS TOÀN CỤC (ĐỊNH DẠNG KHUNG FLASHCARD CHUẨN)
 # ================================
@@ -107,6 +121,8 @@ if "start_time" not in st.session_state:
     st.session_state["start_time"] = None
 if "quiz_feedback" not in st.session_state:
     st.session_state["quiz_feedback"] = None
+if "is_timeout" not in st.session_state:
+    st.session_state["is_timeout"] = False
 
 # ================================
 # XỬ LÝ RẼ NHÁNH TUYỆT ĐỐI THEO URL
@@ -128,47 +144,87 @@ if url_role == "student":
 
     game_type = st.session_state.get("game_type")
 
+    # ĐĂNG NHẬP THÔNG TIN SV VÀ KIỂM TRA CHẶN LÀM LẠI
     if st.session_state["student_info"] is None:
         st.subheader("🔒 Đăng nhập thông tin sinh viên / Nhóm")
         info_input = st.text_input("Nhập Mã số sinh viên / Tên nhóm của bạn:", placeholder="Ví dụ: 0506112300xx")
         
         if st.button("🎯 Xác nhận & Vào học"):
-            if info_input.strip() == "":
+            cleaned_info = info_input.strip()
+            if cleaned_info == "":
                 st.error("Vui lòng nhập thông tin trước khi bắt đầu!")
+            elif cleaned_info in global_store["submitted_students"]:
+                st.error("❌ Bạn đã làm bài tập này trước đó rồi! Hệ thống chỉ cho phép làm bài 1 lần.")
             else:
-                st.session_state["student_info"] = info_input.strip()
+                st.session_state["student_info"] = cleaned_info
                 st.session_state["start_time"] = time.time()
+                st.session_state["is_timeout"] = False
                 st.rerun()
         st.stop()
 
     student_name = st.session_state["student_info"]
+    
+    # KIỂM TRA CHẶN NẾU CO ĐỒNG BỘ TRÙNG TÊN SAU KHI ĐÃ VÀO TRONG APP
+    if student_name in global_store["submitted_students"] and not st.session_state.get("done_and_logged", False):
+        st.error("❌ Hệ thống phát hiện thông tin này đã nộp bài. Bạn không được làm tiếp!")
+        st.stop()
+
+    # TÍNH TOÁN THỜI GIAN LÀM BÀI VÀ XỬ LÝ TỰ ĐỘNG NỘP
     elapsed = int(time.time() - st.session_state["start_time"]) if st.session_state["start_time"] is not None else 0
+    total_allowed_seconds = global_store["time_limit"] * 60
+    remaining_time = total_allowed_seconds - elapsed
+
+    # Kiểm tra nếu hết thời gian mà chưa đánh dấu hoàn thành
+    if remaining_time <= 0 and not st.session_state.get("done_and_logged", False):
+        st.session_state["is_timeout"] = True
+        # Đặt chỉ mục vượt mốc để kích hoạt tự động nộp bài ở logic bên dưới
+        if game_type == "Flashcard":
+            st.session_state["current_card"] = len(data) 
+        elif game_type == "Matching Game":
+            # Ghi nhận điểm số hiện tại tại thời điểm hết giờ
+            st.session_state["score"] = st.session_state["score"]
+
+    # --- SV: HOÀN THÀNH BÀI (LOGIC NỘP BÀI TỰ ĐỘNG HOẶC CHỦ ĐỘNG) ---
+    is_quiz_finished = (game_type == "Flashcard" and st.session_state["current_card"] >= len(data))
+    is_matching_finished = (game_type == "Matching Game" and (st.session_state["score"] == len(data) or st.session_state["is_timeout"]))
+
+    if is_quiz_finished or is_matching_finished:
+        if not st.session_state.get("done_and_logged", False):
+            # Lưu trạng thái đã hoàn thành vào hệ thống để chặn làm lại
+            if student_name not in global_store["submitted_students"]:
+                global_store["submitted_students"].append(student_name)
+            
+            type_label = "Flashcard (Quiz)" if game_type == "Flashcard" else "Matching Game"
+            final_elapsed = min(elapsed, total_allowed_seconds)
+            
+            # Đưa thông tin vào bảng điểm chung
+            st.session_state["leaderboard"].append({
+                "Thời gian nộp": time.strftime('%H:%M:%S - %d/%m/%Y'),
+                "Tên / Nhóm": student_name,
+                "Loại bài tập": type_label,
+                "Kết quả điểm": f"{st.session_state['score']} / {len(data)}",
+                "Thời gian hoàn thành": f"{final_elapsed} giây"
+            })
+            st.session_state["done_and_logged"] = True
+            st.rerun()
+
+        st.balloons()
+        if st.session_state["is_timeout"]:
+            st.error(f"⏰ Hết giờ làm bài! Hệ thống đã tự động nộp bài làm của bạn.")
+        else:
+            st.success(f"🎉 Bạn đã hoàn thành bài tập ôn tập xuất sắc!")
+            
+        st.info(f"Điểm số ghi nhận: {st.session_state['score']}/{len(data)} trong {min(elapsed, total_allowed_seconds)}s")
+        st.warning("🔒 Bạn đã hoàn thành lượt làm bài độc nhất. Không thể làm lại đề này.")
+        st.stop()
+
+    # HIỂN THỊ ĐỒNG HỒ ĐẾM NGƯỢC
+    st.sidebar.markdown(f"### ⏱️ Thời gian còn lại: **{max(0, remaining_time // 60)} phút {max(0, remaining_time % 60)} giây**")
+    st.sidebar.progress(max(0.0, min(1.0, remaining_time / total_allowed_seconds)))
 
     # --- SV: FLASHCARD TRẮC NGHIỆM ---
     if game_type == "Flashcard":
         st.subheader("📝 Trắc nghiệm ôn tập kiến thức")
-        
-        if st.session_state["current_card"] >= len(data):
-            st.balloons()
-            st.success(f"🎉 Bạn đã hoàn thành bài trắc nghiệm! Điểm số: {st.session_state['score']}/{len(data)} trong {elapsed}s")
-            
-            if not any(r.get("Tên / Nhóm") == student_name and r.get("Loại bài tập") == "Flashcard (Quiz)" for r in st.session_state["leaderboard"]):
-                st.session_state["leaderboard"].append({
-                    "Thời gian nộp": time.strftime('%H:%M:%S - %d/%m/%Y'),
-                    "Tên / Nhóm": student_name,
-                    "Loại bài tập": "Flashcard (Quiz)",
-                    "Kết quả điểm": f"{st.session_state['score']} / {len(data)}",
-                    "Thời gian hoàn thành": f"{elapsed} giây"
-                })
-            
-            if st.button("Làm lại từ đầu"):
-                st.session_state["current_card"] = 0
-                st.session_state["score"] = 0
-                st.session_state["start_time"] = time.time()
-                st.session_state["quiz_feedback"] = None
-                if "shuffled_answers" in st.session_state: del st.session_state["shuffled_answers"]
-                st.rerun()
-            st.stop()
 
         idx = st.session_state["current_card"]
         row = data.iloc[idx]
@@ -181,7 +237,6 @@ if url_role == "student":
 
         st.metric("Tiến độ câu hỏi", f"{idx + 1} / {len(data)}")
         
-        # --- FIX CHI TIẾT: Khóa chữ vào trong khung cho SV ---
         st.markdown(
             f"""
             <div class="flashcard-box border-question">
@@ -194,10 +249,15 @@ if url_role == "student":
 
         if st.session_state["quiz_feedback"] is not None:
             is_correct, selected_ans = st.session_state["quiz_feedback"]
-            if is_correct:
-                st.success(f"🎉 **Chính xác!** Bạn đã chọn đúng đáp án: **{selected_ans}**")
+            
+            # KIỂM TRA TÙY CHỌN CHO PHÉP XEM LẠI ĐÁP ÁN (FEEDBACK) CỦA GIẢNG VIÊN
+            if global_store["allow_review"]:
+                if is_correct:
+                    st.success(f"🎉 **Chính xác!** Bạn đã chọn đúng đáp án: **{selected_ans}**")
+                else:
+                    st.error(f"❌ **Sai rồi!** Bạn chọn: *{selected_ans}*. \n\n 👉 Đáp án đúng phải là: **{row['solution']}**")
             else:
-                st.error(f"❌ **Sai rồi!** Bạn chọn: *{selected_ans}*.")
+                st.info("🎯 Hệ thống đã ghi nhận đáp án của bạn.")
             
             st.write("---")
             if st.button("⏩ Chuyển sang câu tiếp theo ngay lập tức", type="primary"):
@@ -205,13 +265,13 @@ if url_role == "student":
                 st.session_state["quiz_feedback"] = None
                 st.rerun()
                 
-            time.sleep(3.0)
+            time.sleep(2.5)
             st.session_state["current_card"] += 1
             st.session_state["quiz_feedback"] = None
             st.rerun()
 
         else:
-            st.write("👇 Hãy chọn đáp án chính xác (Hệ thống ghi nhận và hiển thị kết quả trong 3 giây trước khi chuyển câu):")
+            st.write("👇 Hãy chọn đáp án chính xác (Hệ thống ghi nhận kết quả trước khi chuyển câu):")
             for ans in st.session_state["shuffled_answers"]:
                 if st.button(ans, key=f"ans_{ans}_{idx}", use_container_width=True):
                     if ans == row["solution"]:
@@ -257,28 +317,6 @@ if url_role == "student":
 
         deck = st.session_state["deck"]
 
-        if st.session_state["score"] == len(data):
-            st.balloons()
-            st.success(f"🎉 Xuất sắc! Bạn đã hoàn thành Matching Game trong {elapsed} giây!")
-            
-            if not any(r.get("Tên / Nhóm") == student_name and r.get("Loại bài tập") == "Matching Game" for r in st.session_state["leaderboard"]):
-                st.session_state["leaderboard"].append({
-                    "Thời gian nộp": time.strftime('%H:%M:%S - %d/%m/%Y'),
-                    "Tên / Nhóm": student_name,
-                    "Loại bài tập": "Matching Game",
-                    "Kết quả điểm": f"{len(data)} / {len(data)}",
-                    "Thời gian hoàn thành": f"{elapsed} giây"
-                })
-
-            if st.button("Chơi lại lượt mới"):
-                del st.session_state["deck"]
-                st.session_state["matched"] = []
-                st.session_state["opened_cards"] = []
-                st.session_state["score"] = 0
-                st.session_state["start_time"] = time.time()
-                st.rerun()
-            st.stop()
-
         cols = st.columns(4)
         for i, card in enumerate(deck):
             with cols[i % 4]:
@@ -304,7 +342,7 @@ if url_role == "student":
                 st.rerun()
             else:
                 st.toast("Không khớp rồi, thử lại nhé!", icon="❌")
-                time.sleep(2.0)  
+                time.sleep(1.5)  
                 st.session_state["opened_cards"] = []
                 st.rerun()
 
@@ -344,17 +382,26 @@ else:
 
                 num_q = st.slider("Chọn số lượng câu cho đề game", 1, len(df_filtered), min(5, len(df_filtered))) if len(df_filtered) > 0 else 1
                 game_type = st.radio("Chọn hình thức ôn tập", ["Flashcard", "Matching Game"])
+                
+                # CẤU HÌNH THỜI GIAN VÀ XEM LẠI BÀI GIÚP GIẢNG VIÊN QUẢN LÝ
+                st.markdown("---")
+                st.subheader("⚙️ Cấu hình làm bài cho Sinh viên")
+                time_limit_input = st.number_input("Quy định thời gian làm bài (Phút):", min_value=1, max_value=180, value=5, step=1)
+                allow_review_input = st.checkbox("Cho phép sinh viên xem đáp án Đúng/Sai sau mỗi câu (Dành riêng cho Flashcard)", value=True)
 
                 if st.button("🚀 KHỞI TẠO VÀ PHÁT ĐỀ"):
                     # Tạo dữ liệu cho bản thân GV xem trước
                     st.session_state["flashcard_data"] = df_filtered.sample(num_q).reset_index(drop=True)
                     st.session_state["game_type"] = game_type
                     
-                    # LƯU VÀO KHO CHUNG ĐỂ SINH VIÊN THẤY ĐƯỢC
+                    # LƯU CẤU HÌNH VÀ ĐỀ VÀO KHO CHUNG ĐỂ SINH VIÊN ĐỒNG BỘ
                     global_store["flashcard_data"] = st.session_state["flashcard_data"]
                     global_store["game_type"] = st.session_state["game_type"]
+                    global_store["time_limit"] = time_limit_input
+                    global_store["allow_review"] = allow_review_input
+                    global_store["submitted_students"] = [] # Reset sạch danh sách chặn của đề cũ để đề mới làm lại được
                     
-                    # Reset các biến trạng thái cũ như bạn đã viết
+                    # Reset các biến trạng thái cũ của hệ thống
                     st.session_state["current_card"] = 0
                     st.session_state["current_card_gv"] = 0
                     st.session_state["flipped_gv"] = False
@@ -363,6 +410,9 @@ else:
                     st.session_state["score"] = 0
                     st.session_state["start_time"] = None
                     st.session_state["quiz_feedback"] = None
+                    st.session_state["student_info"] = None
+                    st.session_state["done_and_logged"] = False
+                    st.session_state["is_timeout"] = False
                     if "deck" in st.session_state: del st.session_state["deck"]
                     if "deck_gv" in st.session_state: del st.session_state["deck_gv"]
                     if "shuffled_answers" in st.session_state: del st.session_state["shuffled_answers"]
@@ -376,7 +426,7 @@ else:
                 st.subheader("👀 Khung xem trước giao diện")
                 
                 preview_data = st.session_state["flashcard_data"]
-                st.info(f"Dạng bài đang phát: **{st.session_state['game_type']}** | Tổng số câu: **{len(preview_data)}**")
+                st.info(f"Dạng bài đang phát: **{st.session_state['game_type']}** | Thời gian quy định: **{global_store['time_limit']} phút**")
 
                 if st.session_state["game_type"] == "Flashcard":
                     total_gv_cards = len(preview_data)
@@ -394,7 +444,6 @@ else:
                         label_gv = f"❓ [Mặt trước - CÂU HỎI CÂU {idx_gv + 1}]"
                         class_type = "border-question"
                     
-                    # --- FIX CHI TIẾT: Khóa chữ vào trong khung cho GV ---
                     st.markdown(
                         f"""
                         <div class="flashcard-box {class_type}">
@@ -457,8 +506,9 @@ else:
             else:
                 df_leaderboard = pd.DataFrame(st.session_state["leaderboard"])
                 st.dataframe(df_leaderboard, use_container_width=True)
-                if st.button("🗑️ Xóa sạch bảng điểm"):
+                if st.button("🗑️ Xóa sạch bảng điểm & danh sách chặn"):
                     st.session_state["leaderboard"] = []
+                    global_store["submitted_students"] = []
                     st.rerun()
                     
     else:
