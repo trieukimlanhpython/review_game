@@ -33,6 +33,12 @@ st.markdown("""
         flex-direction: column !important;
         justify-content: center !important;
         align-items: center !important;
+        
+        /* Chống tràn chữ tuyệt đối */
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+        white-space: normal !important;
+        width: 100% !important;
     }
     
     /* Màu viền riêng biệt */
@@ -54,12 +60,13 @@ st.markdown("""
         font-weight: bold !important;
         line-height: 1.6 !important;
         text-align: center !important;
-        display: inline-block !important;
+        max-width: 100% !important;
     }
     
     /* Đồng bộ cỡ chữ cho các ký tự KaTeX/Toán học bên trong khung */
     .card-text .katex, .card-text .katex * {
         font-size: 26px !important; 
+        white-space: normal !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -167,16 +174,17 @@ if url_role == "student":
 
         st.metric("Tiến độ câu hỏi", f"{idx + 1} / {len(data)}")
         
-        # --- FIX CHI TIẾT: Khóa chữ vào trong khung cho SV ---
+        # --- FIX CHI TIẾT: Khóa chữ vào trong khung cho SV & Hỗ trợ hiển thị Công thức ---
         st.markdown(
             f"""
             <div class="flashcard-box border-question">
                 <div class="card-tag">❓ Câu hỏi</div>
-                <div class="card-text">{row['question']}</div>
-            </div>
+                <div class="card-text">
             """, 
             unsafe_allow_html=True
         )
+        st.write(row['question'])  # Sử dụng st.write bên trong cấu trúc div để hỗ trợ hoàn hảo Markdown và Toán LaTeX
+        st.markdown("</div></div>", unsafe_allow_html=True)
 
         if st.session_state["quiz_feedback"] is not None:
             is_correct, selected_ans = st.session_state["quiz_feedback"]
@@ -374,16 +382,17 @@ else:
                         label_gv = f"❓ [Mặt trước - CÂU HỎI CÂU {idx_gv + 1}]"
                         class_type = "border-question"
                     
-                    # --- FIX CHI TIẾT: Khóa chữ vào trong khung cho GV ---
+                    # --- FIX CHI TIẾT: Khóa chữ vào trong khung cho GV & Hỗ trợ hiển thị Công thức ---
                     st.markdown(
                         f"""
                         <div class="flashcard-box {class_type}">
                             <div class="card-tag">{label_gv}</div>
-                            <div class="card-text">{txt_gv}</div>
-                        </div>
+                            <div class="card-text">
                         """, 
                         unsafe_allow_html=True
                     )
+                    st.write(txt_gv)  # Đồng bộ giải pháp dùng st.write để giữ nguyên công thức Toán và định dạng Markdown
+                    st.markdown("</div></div>", unsafe_allow_html=True)
                     
                     col_prev, col_flip, col_next = st.columns([1, 2, 1])
                     with col_prev:
