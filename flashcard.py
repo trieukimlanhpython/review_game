@@ -270,7 +270,7 @@ if url_role == "student":
                 if is_correct:
                     st.success(f"🎉 **Chính xác!** Bạn đã chọn đúng đáp án: **{selected_ans}**")
                 else:
-                    st.error(f"❌ **Sai rồi!** Bạn chọn: *{selected_ans}*. \n\n 👉 Đáp án đúng phải là: **{row['solution']}**")
+                    st.error(f"❌ **Sai rồi!** Bạn chọn: *{selected_ans}*.")
             else:
                 st.info("🎯 Hệ thống đã ghi nhận đáp án của bạn.")
             
